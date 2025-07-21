@@ -5,15 +5,17 @@ html, body {
 body {
   /* full-viewport, animated gradient */
   background: linear-gradient(
-    135deg,
-    #BDE2B8 0%,   /* original mint green */
-    #5DADE2 50%,  /* sky-blue accent */
-    #D4D182 100%  /* original yellow-green */
+    120deg,
+    #BDE2B8 0%,    /* mint green */
+    #BDE2B8 25%,
+    #5DADE2 50%,  /* sky-blue */
+    #5DADE2 50%,
+    #D4D182 75%,  /* yellow-green */
+    #D4D182 100%
   );
-  background-size: 300% 300%;      /* larger for more travel */
-  animation: gradientShift 10s ease infinite;  /* slightly faster */
-  margin: 0;
-  height: 100%;
+  background-size: 400% 400%;     /* enlarge for more movement */
+  animation: gradientShift 12s ease infinite;
+  margin: 0; height: 100%;
   font-family: system-ui, sans-serif;
 }
 
