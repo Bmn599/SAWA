@@ -37,9 +37,9 @@ async function sendMessage() {
   botDiv.classList.add('loading');
 
   try {
-    const aiResponse = await window.generateAIResponse(message);
+    const aiResponse = await window.generateReply(message);
     botDiv.classList.remove('loading');
-    botDiv.querySelector('.message-text').textContent = aiResponse;
+    await typeWriter(botDiv.querySelector('.message-text'), aiResponse);
     appendTimestamp(botDiv);
   } catch (err) {
     console.error('Error generating response:', err);
@@ -67,4 +67,19 @@ function appendTimestamp(el) {
   span.className = 'timestamp';
   span.textContent = new Date().toLocaleTimeString();
   el.appendChild(span);
+}
+
+function typeWriter(el, text, delay = 20) {
+  return new Promise(resolve => {
+    let i = 0;
+    function type() {
+      if (i < text.length) {
+        el.textContent += text.charAt(i++);
+        setTimeout(type, delay);
+      } else {
+        resolve();
+      }
+    }
+    type();
+  });
 }

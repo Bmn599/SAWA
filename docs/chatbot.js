@@ -1,15 +1,15 @@
-// Endpoint for the backend chat API
 const BACKEND_URL = "http://195.201.124.49:8000/chat";
+let history = [];
 
-// Basic placeholder for chatbot functionality
-async function sendMessage(message) {
-  console.log('Sending message:', message);
-  // Send the user's message to the backend and return the reply
-  const resp = await fetch(BACKEND_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message })
+async function generateReply(userText) {
+  const response = await fetch(BACKEND_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: userText, history }),
   });
-  const data = await resp.json();
+  const data = await response.json();
+  history.push({ user: userText, ai: data.reply });
   return data.reply;
 }
+
+window.generateReply = generateReply;
