@@ -1,1 +1,7 @@
-flask
+fastapi
+uvicorn
+llama-cpp-python>=0.2.18
+requests
+beautifulsoup4
+spacy
+redis
