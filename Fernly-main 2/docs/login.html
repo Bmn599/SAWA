@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Fernly Health</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --g1: #8fbf8f;
+      --g2: #9ac99a;
+      --g3: #a6d3a6;
+      --g4: #b1dcb1;
+      --g5: #add9c5;
+      --g6: #e8c864;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      font-family: 'Poppins', sans-serif;
+      color: #333;
+      background: linear-gradient(
+          45deg,
+          var(--g1) 0%,
+          var(--g2) 15%,
+          var(--g3) 30%,
+          var(--g4) 45%,
+          var(--g5) 60%,
+          var(--g6) 100%
+      );
+      background-size: 400% 400%;
+      animation: moodShift 12s ease-in-out infinite;
+      position: relative;
+    }
+
+    h1,
+    h2 {
+      font-family: 'Playfair Display', serif;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAATElEQVR4nAXBMREAIQwEwPu3QIEHylOBBVykijRmkBAJKaBLGQU07KL3TjOjqjIi+K21eO9FKQVzTvzujtYaMhNjDOCcQxHh3pu1Vj4teh4idyTiKwAAAABJRU5ErkJggg==");
+      background-size: 8px 8px;
+      opacity: .04;
+      pointer-events: none;
+    }
+
+    /* Ensure seamless gradient across all sections */
+    section,
+    footer {
+      background: transparent;
+    }
+
+    @keyframes moodShift {
+      0% {
+        background-position: 0% 50%;
+      }
+      50% {
+        background-position: 100% 50%;
+      }
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+
+    .container {
+      width: 90%;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      transition: all 0.3s ease;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 0;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo img {
+      height: 40px;
+      width: auto;
+    }
+
+    .logo span {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #4F7942;
+    }
+
+    .nav-links {
+      list-style: none;
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+
+    .nav-links a {
+      font-weight: 500;
+      transition: color 0.3s ease;
+      position: relative;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .nav-links a:hover {
+      color: #619251;
+    }
+
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      width: 0;
+      height: 2px;
+      bottom: -5px;
+      left: 0;
+      background-color: #619251;
+      transition: width 0.3s ease;
+    }
+
+    .nav-links a:hover::after {
+      width: 100%;
+    }
+
+    .btn-primary {
+      background: #619251;
+      color: #fff;
+      padding: 0.75rem 1.5rem;
+      border-radius: 25px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      border: 2px solid #619251;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .btn-primary:hover {
+      background: transparent;
+      color: #619251;
+      transform: translateY(-2px) scale(1.03);
+    }
+
+    main {
+      margin-top: 100px;
+      padding: 2rem 0;
+      min-height: calc(100vh - 100px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-layout {
+      display: flex;
+      align-items: center;
+      gap: 4rem;
+      max-width: 1200px;
+      width: 100%;
+    }
+
+    .login-illustration {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-illustration img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .login-form-section {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+    }
+
+    .login-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 2.5rem 2rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      text-align: center;
+      max-width: 480px;
+      min-width: 320px;
+      width: 90%;
+      margin: 2rem auto;
+    }
+
+    .login-title {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      color: #4F7942;
+      line-height: 1.2;
+    }
+
+    .login-greeting {
+      font-size: 1rem;
+      color: #666;
+      margin-bottom: 2rem;
+      line-height: 1.7;
+      font-weight: 400;
+    }
+
+    .form-group {
+      position: relative;
+      margin-bottom: 1.25rem;
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #4F7942;
+      font-size: 0.9rem;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: white;
+    }
+
+    .form-group input:hover {
+      border-color: #c0c0c0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #619251;
+      box-shadow: 0 0 0 3px rgba(97, 146, 81, 0.1);
+    }
+
+    .form-group input.error {
+      border-color: #e74c3c;
+      animation: shake 0.5s ease-in-out;
+    }
+
+    .form-group input.valid {
+      border-color: #27ae60;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #666;
+      font-size: 1.2rem;
+      padding: 5px;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .password-toggle:hover {
+      color: #4F7942;
+    }
+
+    .password-toggle svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .error-message {
+      color: #e74c3c;
+      font-size: 0.8rem;
+      margin-top: 0.25rem;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .error-message.show {
+      opacity: 1;
+    }
+
+    .form-options {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+      font-size: 0.9rem;
+    }
+
+    .remember-me {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .remember-me:hover {
+      color: #4F7942;
+    }
+
+    .remember-me input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .remember-me input[type="checkbox"]:hover {
+      transform: scale(1.1);
+    }
+
+    .remember-me label {
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .forgot-password {
+      color: #619251;
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+
+    .forgot-password:hover {
+      text-decoration: underline;
+      color: #4F7942;
+      transform: translateY(-1px);
+    }
+
+    .login-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #619251, #4F7942);
+      color: white;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: 0.75rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(97, 146, 81, 0.4);
+    }
+
+    .login-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .loading-spinner {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .loading-spinner::after {
+      content: '';
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top: 2px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    .divider {
+      text-align: center;
+      margin: 1.5rem 0;
+      position: relative;
+      color: #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e0e0e0;
+    }
+
+    .divider span {
+      background: white;
+      padding: 0 1rem;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .fern-icon {
+      width: 12px;
+      height: 12px;
+      fill: #619251;
+      opacity: 0.6;
+    }
+
+    .social-login {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .social-btn {
+      flex: 1;
+      padding: 0.6rem;
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      background: #fafafa;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      font-weight: 400;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .social-btn:hover {
+      border-color: #d0d0d0;
+      background: #f0f0f0;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .social-btn img {
+      width: 18px;
+      height: 18px;
+    }
+
+    .create-account {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .create-account a {
+      color: #619251;
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+
+    .create-account a:hover {
+      text-decoration: underline;
+      color: #4F7942;
+      transform: translateY(-1px);
+    }
+
+    .support-links {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+    }
+
+    .support-links a {
+      color: #666;
+      text-decoration: none;
+      padding: 0.5rem;
+      border-radius: 6px;
+      transition: all 0.3s ease;
+    }
+
+    .support-links a:hover {
+      color: #4F7942;
+      background: rgba(97, 146, 81, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .support-section {
+      margin-bottom: 1rem;
+    }
+
+    .support-toggle {
+      width: 100%;
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 0.75rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .support-toggle:hover {
+      background: #f0f0f0;
+      border-color: #d0d0d0;
+      color: #4F7942;
+    }
+
+    .support-toggle.active {
+      border-color: #619251;
+      background: #f8f9fa;
+    }
+
+    .chevron-icon {
+      transition: transform 0.3s ease;
+    }
+
+    .support-toggle.active .chevron-icon {
+      transform: rotate(180deg);
+    }
+
+    .support-panel {
+      display: none;
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      padding: 0.5rem;
+      margin-top: -1px;
+    }
+
+    .support-panel.show {
+      display: block;
+    }
+
+    .support-option {
+      margin-bottom: 0.5rem;
+    }
+
+    .support-option:last-child {
+      margin-bottom: 0;
+    }
+
+    .support-option a {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 6px;
+      text-decoration: none;
+      color: #333;
+      transition: all 0.3s ease;
+    }
+
+    .support-option a:hover {
+      background: #f8f9fa;
+      color: #4F7942;
+      transform: translateY(-1px);
+    }
+
+    .support-option svg {
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+      color: #619251;
+    }
+
+    .support-option div {
+      flex: 1;
+      text-align: left;
+    }
+
+    .support-option strong {
+      display: block;
+      margin-bottom: 0.25rem;
+      font-weight: 600;
+    }
+
+    .support-option p {
+      margin: 0;
+      font-size: 0.8rem;
+      color: #666;
+      line-height: 1.3;
+    }
+
+    .security-indicators {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.8rem;
+      color: #666;
+    }
+
+    .security-indicators span {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .crisis-link {
+      text-align: center;
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+
+    .crisis-link a {
+      color: #856404;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .crisis-link a:hover {
+      text-decoration: underline;
+      color: #6b5203;
+      transform: translateY(-1px);
+    }
+
+    .quick-checkin {
+      text-align: center;
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background: #e8f5e8;
+      border: 1px solid #d4edda;
+      border-radius: 8px;
+    }
+
+    .quick-checkin a {
+      color: #4F7942;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .quick-checkin a:hover {
+      text-decoration: underline;
+      color: #3e5f34;
+      transform: translateY(-1px);
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 2000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(5px);
+    }
+
+    .modal-content {
+      background-color: white;
+      margin: 10% auto;
+      padding: 2rem;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 500px;
+      position: relative;
+    }
+
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+      position: absolute;
+      right: 15px;
+      top: 15px;
+    }
+
+    .close:hover {
+      color: #000;
+    }
+
+    .privacy-link {
+      color: #619251;
+      text-decoration: none;
+      font-size: 0.8rem;
+      margin-top: 0.75rem;
+      display: inline-block;
+      transition: all 0.3s ease;
+    }
+
+    .privacy-link:hover {
+      text-decoration: underline;
+      color: #4F7942;
+      transform: translateY(-1px);
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
+      .nav-links {
+        display: none;
+      }
+
+      .login-layout {
+        flex-direction: column;
+        gap: 2rem;
+      }
+
+      .login-illustration {
+        display: none;
+      }
+
+      .login-container {
+        margin: 1rem;
+        padding: 1.5rem;
+        min-width: 280px;
+      }
+
+      .social-login {
+        flex-direction: column;
+      }
+
+      .support-links {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <nav>
+        <div class="logo">
+          <img src="images/Fernly-logo.png" alt="Fernly Health Logo">
+          <span>Fernly Health</span>
+        </div>
+        <ul class="nav-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="index.html#about">About</a></li>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="team.html">Team</a></li>
+          <li><a href="index.html#contact">Contact</a></li>
+          <li><a href="index.html#contact" class="btn-primary">Get Started</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <div class="login-layout">
+        <div class="login-illustration">
+          <img src="Images3/oziel-gomez-6K-xLVV0-wg-unsplash.jpg" alt="Calming nature scene with greenery">
+        </div>
+        
+        <div class="login-form-section">
+          <div class="login-container">
+        <h1 class="login-title">Welcome Back</h1>
+        <p class="login-greeting">
+          Continue your journey to mental wellness—log in now to unlock personalized support tools and connect with our compassionate Arizona based care team.
+        </p>
+
+        <form id="loginForm">
+          <div class="form-group">
+            <label for="email">Email or Username</label>
+            <input type="text" id="email" name="email" required aria-describedby="emailError">
+            <div class="error-message" id="emailError"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <div style="position: relative;">
+              <input type="password" id="password" name="password" required aria-describedby="passwordError">
+              <button type="button" class="password-toggle" id="passwordToggle" aria-label="Toggle password visibility">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+            <div class="error-message" id="passwordError"></div>
+          </div>
+
+          <div class="form-options">
+            <div class="remember-me">
+              <input type="checkbox" id="rememberMe" name="rememberMe">
+              <label for="rememberMe">Remember me</label>
+            </div>
+            <a href="#" class="forgot-password" id="forgotPasswordLink">Forgot password?</a>
+          </div>
+
+          <button type="submit" class="login-btn" id="loginButton">
+            <span class="btn-text">Sign In</span>
+            <div class="loading-spinner" id="loadingSpinner"></div>
+          </button>
+        </form>
+
+        <div class="divider">
+          <span>
+            <svg class="fern-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 2C12 2 15 5 15 9C15 11 14 12 12 12C10 12 9 11 9 9C9 5 12 2 12 2Z" fill="currentColor"/>
+              <path d="M12 12C12 12 15 15 15 19C15 21 14 22 12 22C10 22 9 21 9 19C9 15 12 12 12 12Z" fill="currentColor"/>
+              <path d="M12 7C12 7 8 9 6 11C5 12 5 13 6 13C7 13 8 12 8 11C8 9 12 7 12 7Z" fill="currentColor"/>
+              <path d="M12 7C12 7 16 9 18 11C19 12 19 13 18 13C17 13 16 12 16 11C16 9 12 7 12 7Z" fill="currentColor"/>
+            </svg>
+            or continue with
+            <svg class="fern-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 2C12 2 15 5 15 9C15 11 14 12 12 12C10 12 9 11 9 9C9 5 12 2 12 2Z" fill="currentColor"/>
+              <path d="M12 12C12 12 15 15 15 19C15 21 14 22 12 22C10 22 9 21 9 19C9 15 12 12 12 12Z" fill="currentColor"/>
+              <path d="M12 7C12 7 8 9 6 11C5 12 5 13 6 13C7 13 8 12 8 11C8 9 12 7 12 7Z" fill="currentColor"/>
+              <path d="M12 7C12 7 16 9 18 11C19 12 19 13 18 13C17 13 16 12 16 11C16 9 12 7 12 7Z" fill="currentColor"/>
+            </svg>
+          </span>
+        </div>
+
+        <div class="social-login">
+          <button type="button" class="social-btn" id="googleLogin">
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEwLjIgOC4xVjEySDEzLjlDMTMuNyAxMy4xIDEzLjEgMTMuOSAxMi40IDE0LjNMMTUuMyAxNi42QzE3LjIgMTQuOSAxOC4yIDEyLjMgMTguMiA5LjJDMTguMiA4LjYgMTguMSA4IDE3LjkgNy41SDEwLjJWOC4xWiIgZmlsbD0iIzQyODVGNCIvPgo8cGF0aCBkPSJNNC41IDE0LjNMMy44IDE0LjlMMy43IDE1LjNDNS4xIDE4LjEgNy40IDIwIDEwLjIgMjBDMTIuNSAyMCAxNC40IDE5LjIgMTUuMyAxNi42TDEyLjQgMTQuM0MxMS42IDE0LjggMTAuNSAxNS4xIDEwLjIgMTUuMUM4IDE1LjEgNi4xIDEzLjYgNS4zIDExLjRMNC41IDE0LjNaIiBmaWxsPSIjMzRBODUzIi8+CjxwYXRoIGQ9Ik0xMC4yIDQuOUMxMS42IDQuOSAxMi44IDUuNSAxMy43IDYuM0wxNi4xIDRDMTQuNCAyLjMgMTIuNSAxLjMgMTAuMiAxLjNDNy40IDEuMyA1LjEgMy4yIDMuNyA2TDUuMyAxMS40QzYuMSA5LjIgOCA3LjcgMTAuMiA3LjdWNC45WiIgZmlsbD0iI0ZCQkMwNSIvPgo8cGF0aCBkPSJNMTAuMiA0LjlDMTEuNiA0LjkgMTIuOCA1LjUgMTMuNyA2LjNMMTYuMSA0QzE0LjQgMi4zIDEyLjUgMS4zIDEwLjIgMS4zQzcuNCAxLjMgNS4xIDMuMiAzLjcgNkw1LjMgMTEuNEM2LjEgOS4yIDggNy43IDEwLjIgNy43VjQuOVoiIGZpbGw9IiNFQTQzMzUiLz4KPC9zdmc+Cg==" alt="Google">
+            Google
+          </button>
+          <button type="button" class="social-btn" id="appleLogin">
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEzLjggNS4zQzEzLjIgNC43IDEyLjMgNC4zIDExLjIgNC4zQzEwLjEgNC4zIDkuMiA0LjcgOC42IDUuM0M4IDUuOSA3LjYgNi44IDcuNiA3LjlDNy42IDkgOCA5LjkgOC42IDEwLjVDOS4yIDExLjEgMTAuMSAxMS41IDExLjIgMTEuNUMxMi4zIDExLjUgMTMuMiAxMS4xIDEzLjggMTAuNUMxNC40IDkuOSAxNC44IDkgMTQuOCA3LjlDMTQuOCA2LjggMTQuNCA1LjkgMTMuOCA1LjNaIiBmaWxsPSIjMDAwIi8+CjxwYXRoIGQ9Ik0xNS4yIDEyLjNDMTUuMiAxMi44IDE0LjkgMTMuMiAxNC41IDEzLjVDMTQuMSAxMy44IDEzLjYgMTMuOSAxMy4xIDEzLjlDMTIuNiAxMy45IDEyLjEgMTMuOCAxMS43IDEzLjVDMTEuMyAxMy4yIDExIDEyLjggMTEgMTIuM0MxMSAxMS44IDExLjMgMTEuNCAxMS43IDExLjFDMTIuMSAxMC44IDEyLjYgMTAuNyAxMy4xIDEwLjdDMTMuNiAxMC43IDE0LjEgMTAuOCAxNC41IDExLjFDMTQuOSAxMS40IDE1LjIgMTEuOCAxNS4yIDEyLjNaIiBmaWxsPSIjMDAwIi8+CjxwYXRoIGQ9Ik0xMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNkMxMC4yIDEuNiAxMC4yIDEuNiAxMC4yIDEuNiIgZmlsbD0iIzAwMCIvPgo8L3N2Zz4K" alt="Apple">
+            Apple
+          </button>
+        </div>
+
+        <div class="create-account">
+          <p>Don't have an account? <a href="#" id="createAccountLink">Create one now</a></p>
+        </div>
+
+        <div class="support-section">
+          <button class="support-toggle" id="supportToggle">
+            <span>Need Help or Quick Check-In?</span>
+            <svg class="chevron-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6,9 12,15 18,9"></polyline>
+            </svg>
+          </button>
+          <div class="support-panel" id="supportPanel">
+            <div class="support-option">
+              <a href="#" id="needHelpLink">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M9,9a3,3 0 0,1 6,0c0,2 -3,3 -3,3"></path>
+                  <line x1="12" y1="17" x2="12" y2="17"></line>
+                </svg>
+                <div>
+                  <strong>Need Help?</strong>
+                  <p>Get support with login, account, or technical issues</p>
+                </div>
+              </a>
+            </div>
+            <div class="support-option">
+              <a href="#" id="quickCheckinLink">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                </svg>
+                <div>
+                  <strong>Quick Check-In</strong>
+                  <p>Brief wellness assessment and mood tracking</p>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="security-indicators">
+          <span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <circle cx="12" cy="16" r="1"></circle>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            SSL Secured
+          </span>
+        </div>
+
+
+        <div class="crisis-link">
+          <p>In crisis? Call 988 for immediate help or <a href="https://suicidepreventionlifeline.org/" target="_blank" rel="noopener noreferrer">visit crisis resources</a></p>
+        </div>
+
+        <a href="privacy.html" target="_blank" class="privacy-link">Privacy Policy</a>
+      </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Forgot Password Modal -->
+  <div id="forgotPasswordModal" class="modal">
+    <div class="modal-content">
+      <span class="close" id="closeForgotModal">&times;</span>
+      <h2>Reset Password</h2>
+      <p>Enter your email address and we'll send you a link to reset your password.</p>
+      <form id="forgotPasswordForm">
+        <div class="form-group">
+          <label for="resetEmail">Email Address</label>
+          <input type="email" id="resetEmail" name="resetEmail" required>
+          <div class="error-message" id="resetEmailError"></div>
+        </div>
+        <button type="submit" class="login-btn">Send Reset Link</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Need Help Modal -->
+  <div id="needHelpModal" class="modal">
+    <div class="modal-content">
+      <span class="close" id="closeHelpModal">&times;</span>
+      <h2>Need Help?</h2>
+      <p>Our support team is here to help you. Please fill out this secure form and we'll get back to you within 24 hours.</p>
+      <form id="needHelpForm">
+        <div class="form-group">
+          <label for="helpName">Full Name</label>
+          <input type="text" id="helpName" name="helpName" required>
+        </div>
+        <div class="form-group">
+          <label for="helpEmail">Email Address</label>
+          <input type="email" id="helpEmail" name="helpEmail" required>
+        </div>
+        <div class="form-group">
+          <label for="helpSubject">Subject</label>
+          <select id="helpSubject" name="helpSubject" required style="width: 100%; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px;">
+            <option value="">Select a topic</option>
+            <option value="login">Login Issues</option>
+            <option value="account">Account Problems</option>
+            <option value="technical">Technical Support</option>
+            <option value="billing">Billing Questions</option>
+            <option value="general">General Inquiry</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="helpMessage">Message</label>
+          <textarea id="helpMessage" name="helpMessage" rows="4" required style="width: 100%; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; resize: vertical;"></textarea>
+        </div>
+        <button type="submit" class="login-btn">Send Message</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create Account Modal -->
+  <div id="createAccountModal" class="modal">
+    <div class="modal-content">
+      <span class="close" id="closeCreateModal">&times;</span>
+      <h2>Create Account</h2>
+      <p>Join Fernly Health and start your mental wellness journey today.</p>
+      <form id="createAccountForm">
+        <div class="form-group">
+          <label for="newFullName">Full Name</label>
+          <input type="text" id="newFullName" name="newFullName" required>
+        </div>
+        <div class="form-group">
+          <label for="newEmail">Email Address</label>
+          <input type="email" id="newEmail" name="newEmail" required>
+        </div>
+        <div class="form-group">
+          <label for="newPassword">Password</label>
+          <div style="position: relative;">
+            <input type="password" id="newPassword" name="newPassword" required>
+            <button type="button" class="password-toggle" id="newPasswordToggle" aria-label="Toggle password visibility">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
+          <div class="error-message" id="newPasswordError"></div>
+        </div>
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password</label>
+          <input type="password" id="confirmPassword" name="confirmPassword" required>
+          <div class="error-message" id="confirmPasswordError"></div>
+        </div>
+        <div class="form-group">
+          <div class="remember-me">
+            <input type="checkbox" id="agreeTerms" name="agreeTerms" required>
+            <label for="agreeTerms">I agree to the <a href="privacy.html" target="_blank">Privacy Policy</a> and Terms of Service</label>
+          </div>
+        </div>
+        <button type="submit" class="login-btn">Create Account</button>
+      </form>
+    </div>
+  </div>
+  <script>
+    // Form validation and interaction functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      // Password toggle functionality
+      const passwordToggle = document.getElementById('passwordToggle');
+      const passwordInput = document.getElementById('password');
+      const newPasswordToggle = document.getElementById('newPasswordToggle');
+      const newPasswordInput = document.getElementById('newPassword');
+
+      function togglePassword(toggle, input) {
+        if (toggle && input) {
+          toggle.addEventListener('click', function() {
+            const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+            input.setAttribute('type', type);
+            
+            // Update the SVG icon
+            const isVisible = type === 'text';
+            const svg = toggle.querySelector('svg');
+            if (svg) {
+              if (isVisible) {
+                // Show "eye-off" icon
+                svg.innerHTML = `
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94L6.06 6.06"></path>
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19l-6.37-6.37z"></path>
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                  <path d="M14.12 14.12a3 3 0 0 1-4.24-4.24"></path>
+                `;
+              } else {
+                // Show "eye" icon
+                svg.innerHTML = `
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                `;
+              }
+            }
+          });
+        }
+      }
+
+      togglePassword(passwordToggle, passwordInput);
+      togglePassword(newPasswordToggle, newPasswordInput);
+
+      // Real-time validation
+      const emailInput = document.getElementById('email');
+      const emailError = document.getElementById('emailError');
+
+      function validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+      }
+
+      function validatePassword(password) {
+        return password.length >= 8;
+      }
+
+      function showError(input, errorElement, message) {
+        input.classList.add('error');
+        input.classList.remove('valid');
+        errorElement.textContent = message;
+        errorElement.classList.add('show');
+        input.setAttribute('aria-invalid', 'true');
+      }
+
+      function showValid(input, errorElement) {
+        input.classList.add('valid');
+        input.classList.remove('error');
+        errorElement.textContent = '';
+        errorElement.classList.remove('show');
+        input.setAttribute('aria-invalid', 'false');
+      }
+
+      // Email validation
+      emailInput.addEventListener('blur', function() {
+        const email = this.value.trim();
+        if (email && !validateEmail(email)) {
+          showError(this, emailError, 'Please enter a valid email address');
+        } else if (email) {
+          showValid(this, emailError);
+        }
+      });
+
+      // Password validation
+      passwordInput.addEventListener('blur', function() {
+        const password = this.value;
+        const passwordError = document.getElementById('passwordError');
+        if (password && !validatePassword(password)) {
+          showError(this, passwordError, 'Password must be at least 8 characters long');
+        } else if (password) {
+          showValid(this, passwordError);
+        }
+      });
+
+      // Modal functionality
+      const modals = ['forgotPasswordModal', 'needHelpModal', 'createAccountModal'];
+      const modalTriggers = {
+        'forgotPasswordLink': 'forgotPasswordModal',
+        'needHelpLink': 'needHelpModal',
+        'createAccountLink': 'createAccountModal'
+      };
+
+      // Open modals
+      Object.entries(modalTriggers).forEach(([triggerID, modalID]) => {
+        const trigger = document.getElementById(triggerID);
+        const modal = document.getElementById(modalID);
+        if (trigger && modal) {
+          trigger.addEventListener('click', function(e) {
+            e.preventDefault();
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+          });
+        }
+      });
+
+      // Close modals
+      const closeButtons = ['closeForgotModal', 'closeHelpModal', 'closeCreateModal'];
+      closeButtons.forEach(buttonID => {
+        const button = document.getElementById(buttonID);
+        if (button) {
+          button.addEventListener('click', function() {
+            const modal = this.closest('.modal');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+          });
+        }
+      });
+
+      // Close modal when clicking outside
+      modals.forEach(modalID => {
+        const modal = document.getElementById(modalID);
+        if (modal) {
+          modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+              this.style.display = 'none';
+              document.body.style.overflow = 'auto';
+            }
+          });
+        }
+      });
+
+      // Form submissions
+      const loginForm = document.getElementById('loginForm');
+      const loginButton = document.getElementById('loginButton');
+      const loadingSpinner = document.getElementById('loadingSpinner');
+      const btnText = loginButton.querySelector('.btn-text');
+
+      loginForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        
+        // Basic validation
+        let isValid = true;
+        
+        if (!email) {
+          showError(emailInput, emailError, 'Email is required');
+          isValid = false;
+        } else if (!validateEmail(email)) {
+          showError(emailInput, emailError, 'Please enter a valid email address');
+          isValid = false;
+        }
+        
+        if (!password) {
+          showError(passwordInput, document.getElementById('passwordError'), 'Password is required');
+          isValid = false;
+        }
+        
+        if (!isValid) {
+          // Shake animation for errors
+          loginForm.style.animation = 'shake 0.5s ease-in-out';
+          setTimeout(() => {
+            loginForm.style.animation = '';
+          }, 500);
+          return;
+        }
+        
+        // Show loading state
+        loginButton.disabled = true;
+        btnText.style.opacity = '0';
+        loadingSpinner.style.display = 'block';
+        
+        // Simulate login process
+        setTimeout(() => {
+          // Reset button state
+          loginButton.disabled = false;
+          btnText.style.opacity = '1';
+          loadingSpinner.style.display = 'none';
+          
+          // Demo login - in production, this would make an API call
+          if (email === 'demo@fernly.com' && password === 'demo123') {
+            alert('Login successful! Welcome to Fernly Health.');
+            // Redirect to dashboard or home page
+            window.location.href = 'index.html';
+          } else {
+            alert('Invalid credentials. Try demo@fernly.com / demo123');
+            // Shake animation for failed login
+            loginForm.style.animation = 'shake 0.5s ease-in-out';
+            setTimeout(() => {
+              loginForm.style.animation = '';
+            }, 500);
+          }
+        }, 1500);
+      });
+
+      // Social login handlers
+      const googleLogin = document.getElementById('googleLogin');
+      const appleLogin = document.getElementById('appleLogin');
+
+      googleLogin.addEventListener('click', function() {
+        alert('Google SSO Integration\n\nFor production, configure with:\n1. Google Cloud Console OAuth 2.0 credentials\n2. Client ID and Secret\n3. Authorized redirect URIs\n\nDemo: This would redirect to Google OAuth flow.');
+      });
+
+      appleLogin.addEventListener('click', function() {
+        alert('Apple SSO Integration\n\nFor production, configure with:\n1. Apple Developer Account\n2. Sign in with Apple service\n3. App ID and Key\n\nDemo: This would redirect to Apple ID authentication.');
+      });
+
+      // Forgot password form
+      const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+      forgotPasswordForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const email = document.getElementById('resetEmail').value.trim();
+        
+        if (!validateEmail(email)) {
+          const errorElement = document.getElementById('resetEmailError');
+          showError(document.getElementById('resetEmail'), errorElement, 'Please enter a valid email address');
+          return;
+        }
+        
+        alert('Password reset link sent to ' + email);
+        document.getElementById('forgotPasswordModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+      });
+
+      // Need help form
+      const needHelpForm = document.getElementById('needHelpForm');
+      needHelpForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const name = document.getElementById('helpName').value.trim();
+        const email = document.getElementById('helpEmail').value.trim();
+        const subject = document.getElementById('helpSubject').value;
+        const message = document.getElementById('helpMessage').value.trim();
+        
+        if (name && email && subject && message && validateEmail(email)) {
+          alert('Support request submitted successfully! We\'ll get back to you within 24 hours.');
+          document.getElementById('needHelpModal').style.display = 'none';
+          document.body.style.overflow = 'auto';
+          needHelpForm.reset();
+        } else {
+          alert('Please fill out all fields with valid information.');
+        }
+      });
+
+      // Create account form
+      const createAccountForm = document.getElementById('createAccountForm');
+      createAccountForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const fullName = document.getElementById('newFullName').value.trim();
+        const email = document.getElementById('newEmail').value.trim();
+        const password = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        const agreeTerms = document.getElementById('agreeTerms').checked;
+        
+        let isValid = true;
+        
+        if (!fullName) {
+          alert('Please enter your full name');
+          isValid = false;
+        }
+        
+        if (!validateEmail(email)) {
+          alert('Please enter a valid email address');
+          isValid = false;
+        }
+        
+        if (!validatePassword(password)) {
+          showError(document.getElementById('newPassword'), document.getElementById('newPasswordError'), 'Password must be at least 8 characters long');
+          isValid = false;
+        }
+        
+        if (password !== confirmPassword) {
+          showError(document.getElementById('confirmPassword'), document.getElementById('confirmPasswordError'), 'Passwords do not match');
+          isValid = false;
+        }
+        
+        if (!agreeTerms) {
+          alert('Please agree to the Privacy Policy and Terms of Service');
+          isValid = false;
+        }
+        
+        if (isValid) {
+          alert('Account created successfully! Please check your email for verification.');
+          document.getElementById('createAccountModal').style.display = 'none';
+          document.body.style.overflow = 'auto';
+          createAccountForm.reset();
+        }
+      });
+
+      // Quick check-in functionality
+      const quickCheckinLinks = document.querySelectorAll('#quickCheckinLink');
+      quickCheckinLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          alert('Quick Check-In Feature\n\nThis would open a brief wellness assessment including:\n• Mood tracking\n• Stress level evaluation\n• Sleep quality check\n• Medication adherence\n• Crisis screening\n\nRedirecting to wellness portal...');
+          // In production, this would redirect to a wellness assessment tool
+        });
+      });
+
+      // Support toggle functionality
+      const supportToggle = document.getElementById('supportToggle');
+      const supportPanel = document.getElementById('supportPanel');
+      
+      if (supportToggle && supportPanel) {
+        supportToggle.addEventListener('click', function(e) {
+          e.preventDefault();
+          const isActive = supportToggle.classList.contains('active');
+          
+          if (isActive) {
+            supportToggle.classList.remove('active');
+            supportPanel.classList.remove('show');
+          } else {
+            supportToggle.classList.add('active');
+            supportPanel.classList.add('show');
+          }
+        });
+      }
+
+
+
+      // Keyboard navigation support
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          modals.forEach(modalID => {
+            const modal = document.getElementById(modalID);
+            if (modal && modal.style.display === 'block') {
+              modal.style.display = 'none';
+              document.body.style.overflow = 'auto';
+            }
+          });
+        }
+      });
+
+      // Remember me functionality
+      const rememberMeCheckbox = document.getElementById('rememberMe');
+      const storedEmail = localStorage.getItem('fernly_remembered_email');
+      
+      if (storedEmail) {
+        emailInput.value = storedEmail;
+        rememberMeCheckbox.checked = true;
+      }
+      
+      rememberMeCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+          localStorage.setItem('fernly_remembered_email', emailInput.value);
+        } else {
+          localStorage.removeItem('fernly_remembered_email');
+        }
+      });
+
+      // Update remember me storage when email changes
+      emailInput.addEventListener('input', function() {
+        if (rememberMeCheckbox.checked) {
+          localStorage.setItem('fernly_remembered_email', this.value);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

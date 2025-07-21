@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Walk In Care",
+    "description": "Emergency assessments in a friendly lounge setting.",
+    "booking": "Walk-ins welcome. Contact us immediately for urgent needs."
+  },
+  {
+    "name": "Intensive Outpatient (IOP)",
+    "description": "Group therapy in a cozy, supportive space.",
+    "booking": "Enrollment required. Call or use the online form to learn more."
+  },
+  {
+    "name": "Partial Hospitalization (PHP)",
+    "description": "Full day care in a serene, home-like environment.",
+    "booking": "Assessment required. Contact us for eligibility and scheduling."
+  },
+  {
+    "name": "Medication Assisted Treatment",
+    "description": "Gentle medication plans with ongoing personal support.",
+    "booking": "Medical consultation required. Schedule an appointment with our providers."
+  },
+  {
+    "name": "Medication Management",
+    "description": "Tailored oversight for your mental wellness journey.",
+    "booking": "Ongoing appointments required. Contact us to establish care."
+  },
+  {
+    "name": "Therapy & Counseling",
+    "description": "Personal sessions that foster genuine connection and healing.",
+    "booking": "Appointments required. Call or use the online form to schedule."
+  }
+]
