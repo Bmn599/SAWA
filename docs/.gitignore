@@ -1,0 +1,3 @@
+# Ignore model files
+backend/models/*.gguf
+backend/models/*.bin
