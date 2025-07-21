@@ -1,0 +1,16 @@
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Node modules
+node_modules/
+
+# Mac and system files
+.DS_Store
+
+# Virtual environments
+venv/
+ENV/
+
+# Logs
+*.log
