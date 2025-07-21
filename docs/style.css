@@ -3,7 +3,17 @@ html, body {
   margin: 0;
 }
 body {
-  background: linear-gradient(135deg, #BDE2B8 0%, #D4D182 100%);
+  /* full-viewport, animated gradient */
+  background: linear-gradient(
+    135deg,
+    #BDE2B8 0%,   /* original mint green */
+    #5DADE2 50%,  /* sky-blue accent */
+    #D4D182 100%  /* original yellow-green */
+  );
+  background-size: 300% 300%;      /* larger for more travel */
+  animation: gradientShift 10s ease infinite;  /* slightly faster */
+  margin: 0;
+  height: 100%;
   font-family: system-ui, sans-serif;
 }
 
@@ -126,4 +136,10 @@ body {
   .chat-area { margin: 48px 0 0; }
   .chat-header { padding: 0 16px; font-size: 16px; }
   .input-bar { padding: 0 16px; width: calc(100% - 32px); }
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
