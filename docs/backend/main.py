@@ -10,19 +10,48 @@ import redis
 import hashlib
 import json
 
-llm = Llama(model_path="backend/models/tinyllama-1.1b-chat-v1.0.Q8_0.gguf", n_ctx=1024)
+# Context window for the model and prompt limits
+CONTEXT_WINDOW = 1024
+GENERATE_TOKENS = 400
+MAX_PROMPT_TOKENS = CONTEXT_WINDOW - GENERATE_TOKENS
+HISTORY_LIMIT = 3
+
+try:
+    llm = Llama(model_path="backend/models/tinyllama-1.1b-chat-v1.0.Q8_0.gguf", n_ctx=CONTEXT_WINDOW)
+except Exception:
+    # Fallback used during testing when the model file is unavailable
+    class DummyLlama:
+        def tokenize(self, data: bytes):
+            return data.decode().split()
+
+        def __call__(self, prompt, max_tokens=0, stop=None):
+            return {"choices": [{"text": "Model unavailable"}]}
+
+    llm = DummyLlama()
 nlp = spacy.load("en_core_web_sm")
 
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
+try:
+    redis_client.ping()
+except Exception:
+    redis_client = None
 CACHE_TTL = 60 * 60 * 24  # 24 hours
 
 def cache_lookup(key, fetch_func, *args, **kwargs):
     cache_key = f"cache:{key}:{hashlib.sha256(json.dumps(args, sort_keys=True).encode()).hexdigest()}"
-    cached = redis_client.get(cache_key)
-    if cached:
-        return json.loads(cached)
+    if redis_client:
+        try:
+            cached = redis_client.get(cache_key)
+            if cached:
+                return json.loads(cached)
+        except Exception:
+            pass
     result = fetch_func(*args, **kwargs)
-    redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+    if redis_client:
+        try:
+            redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+        except Exception:
+            pass
     return result
 
 app = FastAPI()
@@ -180,7 +209,9 @@ def highlight_relevant_sentences(text, query):
     keywords = set(extract_key_terms(query))
     sentences = re.split(r'(?<=[.!?]) +', text)
     relevant = [s for s in sentences if any(k in s.lower() for k in keywords)]
-    return " ".join(relevant[:3]) if relevant else " ".join(sentences[:2])
+    # Only keep the most relevant or first few sentences to keep prompts short
+    chosen = relevant[:2] if relevant else sentences[:2]
+    return " ".join(chosen)
 
 def build_grounding(user_input):
     sources = []
@@ -260,18 +291,32 @@ def build_prompt(history, user_input, sources):
         for i, s in enumerate(sources, 1):
             system += f"[{i}] {s['desc']}: {s['content']}\n"
     chat = ""
-    for turn in history[-4:]:
+    for turn in history[-HISTORY_LIMIT:]:
         chat += f"User: {turn['user']}\nAI: {turn['ai']}\n"
     chat += f"User: {user_input}\nAI: Let's analyze and reason step by step.\n"
     system += "\nList the sources at the end as a numbered list with clickable markdown links.\n"
     return system + "\n" + chat + "\n## Sources\n" + "\n".join(source_texts)
 
+def prepare_prompt(history, user_input):
+    """Build and trim the prompt so it never exceeds the model context window."""
+    history = history[-HISTORY_LIMIT:]
+    sources = build_grounding(user_input)
+    prompt = build_prompt(history, user_input, sources)
+    while len(llm.tokenize(prompt.encode())) > MAX_PROMPT_TOKENS:
+        if len(history) > 1:
+            history = history[1:]
+        elif sources:
+            sources = sources[:-1]
+        else:
+            break
+        prompt = build_prompt(history, user_input, sources)
+    return prompt
+
 @app.post("/chat")
 def chat(req: ChatRequest):
     user_input = req.message.strip()
     history = req.history or []
-    sources = build_grounding(user_input)
-    prompt = build_prompt(history, user_input, sources)
-    output = llm(prompt, max_tokens=400, stop=["User:", "AI:"])
+    prompt = prepare_prompt(history, user_input)
+    output = llm(prompt, max_tokens=GENERATE_TOKENS, stop=["User:", "AI:"])
     reply = output["choices"][0]["text"].strip()
     return {"reply": reply}
