@@ -6,13 +6,14 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import spacy
+import hashlib
+import json
+
 nlp = spacy.load("en_core_web_sm")
 try:
     import redis
 except Exception:
     redis = None
-import hashlib
-import json
 
 CONTEXT_WINDOW = 1024
 GENERATE_TOKENS = 400
@@ -219,13 +220,14 @@ def trim_to_sentences(text, max_sentences=2):
     sentences = re.split(r'(?<=[.!?]) +', text.strip())
     return " ".join(sentences[:max_sentences])
 
+# ---- UPDATED build_grounding ----
 def build_grounding(user_input):
     sources = []
     key_terms = extract_key_terms(user_input)
     dict_defs = []
     for term in key_terms:
         definition = lookup_dictionary(term)
-        if definition and isinstance(definition, str) and definition.strip():
+        if isinstance(definition, str) and definition.strip():
             trimmed = trim_to_sentences(definition, 1)
             if trimmed:
                 dict_defs.append(f"**{term}**: {trimmed}")
@@ -233,7 +235,7 @@ def build_grounding(user_input):
         sources.append({"desc": "Dictionary definitions", "content": "\n".join(dict_defs), "url": None})
 
     wiki, wiki_url = fetch_wikipedia_summary(user_input)
-    if wiki and isinstance(wiki, str) and wiki.strip():
+    if isinstance(wiki, str) and wiki.strip():
         highlighted = highlight_relevant_sentences(wiki, user_input)
         if highlighted:
             sources.append({"desc": "Wikipedia", "content": highlighted, "url": wiki_url})
@@ -247,7 +249,7 @@ def build_grounding(user_input):
     papers = search_semantic_scholar(user_input)
     for p in papers:
         abstract = p.get('abstract')
-        if abstract and isinstance(abstract, str) and abstract.strip():
+        if isinstance(abstract, str) and abstract.strip():
             content = highlight_relevant_sentences(abstract, user_input)
             if content:
                 sources.append({"desc": "Semantic Scholar", "content": f"{p['title']}: {content}", "url": p['url']})
@@ -255,28 +257,29 @@ def build_grounding(user_input):
     pubmed = search_pubmed(user_input)
     for p in pubmed:
         title = p.get('title')
-        if title and isinstance(title, str) and title.strip():
-            sources.append({"desc": "PubMed", "content": p['title'], "url": p['url']})
+        if isinstance(title, str) and title.strip():
+            sources.append({"desc": "PubMed", "content": title, "url": p['url']})
 
     medline, medline_url = scrape_trusted_health_site(user_input)
-    if medline and isinstance(medline, str) and medline.strip():
+    if isinstance(medline, str) and medline.strip():
         highlighted = highlight_relevant_sentences(medline, user_input)
         if highlighted:
             sources.append({"desc": "MedlinePlus", "content": highlighted, "url": medline_url})
 
     cdc, cdc_url = fetch_cdc(user_input)
-    if cdc and isinstance(cdc, str) and cdc.strip():
+    if isinstance(cdc, str) and cdc.strip():
         highlighted = highlight_relevant_sentences(cdc, user_input)
         if highlighted:
             sources.append({"desc": "CDC", "content": highlighted, "url": cdc_url})
 
     mayo, mayo_url = fetch_mayo_clinic(user_input)
-    if mayo and isinstance(mayo, str) and mayo.strip():
+    if isinstance(mayo, str) and mayo.strip():
         highlighted = highlight_relevant_sentences(mayo, user_input)
         if highlighted:
             sources.append({"desc": "Mayo Clinic", "content": highlighted, "url": mayo_url})
 
     return sources
+# ---- END build_grounding ----
 
 def build_prompt(history, user_input, sources):
     source_texts = []
@@ -327,23 +330,20 @@ def safe_token_count(llm, prompt):
 
 def prepare_prompt_and_trim(llm, build_prompt, history, user_input, sources):
     prompt = build_prompt(history, user_input, sources)
+    # Try to trim history first, then sources, then force cut prompt.
     while safe_token_count(llm, prompt) > MAX_PROMPT_TOKENS:
-        if len(history) > 1:
+        if len(history) > 0:
             history = history[1:]
-        elif sources:
+        elif len(sources) > 0:
             sources = sources[:-1]
         else:
-            # As a last resort, remove lines from the end
+            # Hard cut: chop lines off the end until it's short enough
             lines = prompt.splitlines()
-            if len(lines) > 1:
-                prompt = "\n".join(lines[:-1])
-            else:
-                # If only one line left, break
-                break
+            while safe_token_count(llm, "\n".join(lines)) > MAX_PROMPT_TOKENS and len(lines) > 1:
+                lines = lines[:-1]
+            prompt = "\n".join(lines)
+            break
         prompt = build_prompt(history, user_input, sources)
-    # Final check: forcibly truncate if still too long
-    while safe_token_count(llm, prompt) > MAX_PROMPT_TOKENS and len(prompt) > 10:
-        prompt = prompt[:len(prompt)//2]
     return prompt
 
 @app.post("/chat")
@@ -353,8 +353,15 @@ def chat(req: ChatRequest):
         history = req.history or []
         sources = build_grounding(user_input)
         prompt = prepare_prompt_and_trim(llm, build_prompt, history, user_input, sources)
+        if safe_token_count(llm, prompt) > MAX_PROMPT_TOKENS:
+            return {"error": "Prompt too long for context window, try a shorter input."}
         output = llm(prompt, max_tokens=GENERATE_TOKENS, stop=["User:", "AI:"])
         reply = output["choices"][0]["text"].strip()
         return {"reply": reply}
     except Exception as e:
         return {"error": str(e)}
+
+# (Optional: Add a root endpoint so you don't get 404 warnings in the logs)
+@app.get("/")
+def root():
+    return {"msg": "Fernly AI API running"}
