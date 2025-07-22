@@ -206,12 +206,14 @@ def fetch_mayo_clinic(query):
     return cache_lookup("mayo", _fetch_mayo_clinic, query)
 
 def highlight_relevant_sentences(text, query):
+    if not text:
+        return ""
     keywords = set(extract_key_terms(query))
     sentences = re.split(r'(?<=[.!?]) +', text)
     relevant = [s for s in sentences if any(k in s.lower() for k in keywords)]
     # Only keep the most relevant or first few sentences to keep prompts short
     chosen = relevant[:2] if relevant else sentences[:2]
-    return " ".join(chosen)
+    return "".join(chosen)
 
 def build_grounding(user_input):
     sources = []
