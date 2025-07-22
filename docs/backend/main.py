@@ -341,8 +341,12 @@ def chat(req: ChatRequest):
     # Final check: trim prompt if still over
     tokens = llm.tokenize(prompt.encode())
     while len(tokens) > MAX_PROMPT_TOKENS:
-        # Try removing lines from the end
-        prompt = "\n".join(prompt.splitlines()[:-1])
+        lines = prompt.splitlines()
+        if len(lines) > 1:
+            prompt = "\n".join(lines[:-1])
+        else:
+            # Final last resort: truncate prompt string
+            prompt = prompt[:max(1, len(prompt) // 2)]
         tokens = llm.tokenize(prompt.encode())
     output = llm(prompt, max_tokens=GENERATE_TOKENS, stop=["User:", "AI:"])
     reply = output["choices"][0]["text"].strip()
