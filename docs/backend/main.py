@@ -65,6 +65,8 @@ class ChatRequest(BaseModel):
     history: list = []
 
 def extract_key_terms(text):
+    if not isinstance(text, str):
+        return []
     doc = nlp(text)
     terms = set()
     for chunk in doc.noun_chunks:
@@ -203,7 +205,7 @@ def fetch_mayo_clinic(query):
     return cache_lookup("mayo", _fetch_mayo_clinic, query)
 
 def highlight_relevant_sentences(text, query):
-    if not text or not isinstance(text, str):
+    if not isinstance(text, str) or not text:
         return ""
     keywords = set(extract_key_terms(query))
     sentences = re.split(r'(?<=[.!?]) +', text)
@@ -212,7 +214,7 @@ def highlight_relevant_sentences(text, query):
     return " ".join(chosen)
 
 def trim_to_sentences(text, max_sentences=2):
-    if not text or not isinstance(text, str):
+    if not isinstance(text, str) or not text:
         return ""
     sentences = re.split(r'(?<=[.!?]) +', text.strip())
     return " ".join(sentences[:max_sentences])
@@ -316,38 +318,43 @@ def build_prompt(history, user_input, sources):
     system += "\nList the sources at the end as a numbered list with clickable markdown links.\n"
     return system + "\n" + chat + "\n## Sources\n" + "\n".join(source_texts)
 
-def prepare_prompt(history, user_input):
-    """Build and trim the prompt so it never exceeds the model context window."""
-    history = list(history[-HISTORY_LIMIT:])
-    sources = build_grounding(user_input)
+def safe_token_count(llm, prompt):
+    try:
+        tokens = llm.tokenize(prompt)
+    except Exception:
+        tokens = llm.tokenize(prompt.encode())
+    return len(tokens)
+
+def prepare_prompt_and_trim(llm, build_prompt, history, user_input, sources):
     prompt = build_prompt(history, user_input, sources)
-    # Remove older chat, then sources, until within token limit
-    while len(llm.tokenize(prompt.encode())) > MAX_PROMPT_TOKENS:
+    while safe_token_count(llm, prompt) > MAX_PROMPT_TOKENS:
         if len(history) > 1:
             history = history[1:]
         elif sources:
             sources = sources[:-1]
         else:
-            # As last resort, truncate the user_input
-            user_input = user_input[:max(1, len(user_input) // 2)]
+            # As a last resort, remove lines from the end
+            lines = prompt.splitlines()
+            if len(lines) > 1:
+                prompt = "\n".join(lines[:-1])
+            else:
+                # If only one line left, break
+                break
         prompt = build_prompt(history, user_input, sources)
+    # Final check: forcibly truncate if still too long
+    while safe_token_count(llm, prompt) > MAX_PROMPT_TOKENS and len(prompt) > 10:
+        prompt = prompt[:len(prompt)//2]
     return prompt
 
 @app.post("/chat")
 def chat(req: ChatRequest):
-    user_input = req.message.strip()
-    history = req.history or []
-    prompt = prepare_prompt(history, user_input)
-    # Final check: trim prompt if still over
-    tokens = llm.tokenize(prompt.encode())
-    while len(tokens) > MAX_PROMPT_TOKENS:
-        lines = prompt.splitlines()
-        if len(lines) > 1:
-            prompt = "\n".join(lines[:-1])
-        else:
-            # Final last resort: truncate prompt string
-            prompt = prompt[:max(1, len(prompt) // 2)]
-        tokens = llm.tokenize(prompt.encode())
-    output = llm(prompt, max_tokens=GENERATE_TOKENS, stop=["User:", "AI:"])
-    reply = output["choices"][0]["text"].strip()
-    return {"reply": reply}
+    try:
+        user_input = req.message.strip()
+        history = req.history or []
+        sources = build_grounding(user_input)
+        prompt = prepare_prompt_and_trim(llm, build_prompt, history, user_input, sources)
+        output = llm(prompt, max_tokens=GENERATE_TOKENS, stop=["User:", "AI:"])
+        reply = output["choices"][0]["text"].strip()
+        return {"reply": reply}
+    except Exception as e:
+        return {"error": str(e)}
