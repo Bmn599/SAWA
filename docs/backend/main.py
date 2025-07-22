@@ -1,73 +1,12 @@
-try:
-    from fastapi import FastAPI
-    from fastapi.middleware.cors import CORSMiddleware
-    from pydantic import BaseModel
-except Exception:
-    # Minimal fallbacks so tests can run without FastAPI installed
-    class FastAPI:
-        def __init__(self):
-            pass
-
-        def add_middleware(self, *args, **kwargs):
-            pass
-
-        def post(self, path):
-            def decorator(fn):
-                return fn
-
-            return decorator
-
-    class CORSMiddleware:
-        pass
-
-    class BaseModel:
-        pass
-try:
-    from llama_cpp import Llama
-except Exception:
-    Llama = None
-try:
-    import requests
-    from bs4 import BeautifulSoup
-except Exception:
-    class DummyResponse:
-        text = ""
-        status_code = 200
-
-        def json(self):
-            return {}
-
-    class requests:
-        class utils:
-            @staticmethod
-            def quote(text):
-                return text
-
-        @staticmethod
-        def get(*args, **kwargs):
-            return DummyResponse()
-
-    class BeautifulSoup:
-        def __init__(self, *args, **kwargs):
-            pass
-        def find(self, *args, **kwargs):
-            return None
-        def get_text(self, *args, **kwargs):
-            return ""
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from llama_cpp import Llama
+import requests
+from bs4 import BeautifulSoup
 import re
-try:
-    import spacy
-    nlp = spacy.load("en_core_web_sm")
-except Exception:
-    class DummyNLP:
-        def __call__(self, text):
-            class DummyDoc:
-                noun_chunks = []
-                ents = []
-
-            return DummyDoc()
-
-    nlp = DummyNLP()
+import spacy
+nlp = spacy.load("en_core_web_sm")
 try:
     import redis
 except Exception:
@@ -81,20 +20,10 @@ GENERATE_TOKENS = 400
 MAX_PROMPT_TOKENS = CONTEXT_WINDOW - GENERATE_TOKENS
 HISTORY_LIMIT = 3
 
-try:
-    if Llama is None:
-        raise Exception
-    llm = Llama(model_path="backend/models/tinyllama-1.1b-chat-v1.0.Q8_0.gguf", n_ctx=CONTEXT_WINDOW)
-except Exception:
-    # Fallback used during testing when the model file is unavailable
-    class DummyLlama:
-        def tokenize(self, data: bytes):
-            return data.decode().split()
-
-        def __call__(self, prompt, max_tokens=0, stop=None):
-            return {"choices": [{"text": "Model unavailable"}]}
-
-    llm = DummyLlama()
+llm = Llama(
+    model_path="backend/models/tinyllama-1.1b-chat-v1.0.Q8_0.gguf",
+    n_ctx=CONTEXT_WINDOW,
+)
 
 if redis is not None:
     redis_client = redis.Redis(host='localhost', port=6379, db=0)
