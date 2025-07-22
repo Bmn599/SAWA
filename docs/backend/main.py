@@ -16,7 +16,7 @@ except Exception:
     redis = None
 
 CONTEXT_WINDOW = 1024
-GENERATE_TOKENS = 400
+GENERATE_TOKENS = 200  # Lowered for more room for prompt!
 MAX_PROMPT_TOKENS = CONTEXT_WINDOW - GENERATE_TOKENS
 HISTORY_LIMIT = 3
 
@@ -207,12 +207,27 @@ def fetch_mayo_clinic(query):
 
 def highlight_relevant_sentences(text, query):
     if not isinstance(text, str) or not text:
+        print(f"highlight_relevant_sentences called with bad value: {type(text)} {text!r}")
         return ""
-    keywords = set(extract_key_terms(query))
-    sentences = re.split(r'(?<=[.!?]) +', text)
-    relevant = [s for s in sentences if any(k in s.lower() for k in keywords)]
-    chosen = relevant[:2] if relevant else sentences[:2]
-    return " ".join(chosen)
+    try:
+        keywords = set(extract_key_terms(query))
+        sentences = re.split(r'(?<=[.!?]) +', text)
+        relevant = [s for s in sentences if any(k in s.lower() for k in keywords)]
+        chosen = relevant[:2] if relevant else sentences[:2]
+        return " ".join(chosen)
+    except Exception as e:
+        print(f"highlight_relevant_sentences error: {e}, text={text!r}")
+        return ""
+
+def safe_highlight(text, query):
+    if not isinstance(text, str) or not text:
+        print(f"safe_highlight: input not str: {type(text)} {text!r}")
+        return ""
+    try:
+        return highlight_relevant_sentences(text, query)
+    except Exception as e:
+        print(f"safe_highlight error: {e}")
+        return ""
 
 def trim_to_sentences(text, max_sentences=2):
     if not isinstance(text, str) or not text:
@@ -234,10 +249,9 @@ def build_grounding(user_input):
         sources.append({"desc": "Dictionary definitions", "content": "\n".join(dict_defs), "url": None})
 
     wiki, wiki_url = fetch_wikipedia_summary(user_input)
-    if isinstance(wiki, str) and wiki.strip():
-        highlighted = highlight_relevant_sentences(wiki, user_input)
-        if highlighted:
-            sources.append({"desc": "Wikipedia", "content": highlighted, "url": wiki_url})
+    highlighted = safe_highlight(wiki, user_input)
+    if highlighted:
+        sources.append({"desc": "Wikipedia", "content": highlighted, "url": wiki_url})
 
     # Prioritize guidelines and RCTs
     sources.append({"desc": "AHA/ACC/HFSA Guideline", "content": "2022 guideline for heart failure and arrhythmia management. Includes recommendations for acute and chronic AFib, rate/rhythm control, and anticoagulation. Class I, Level A evidence for immediate cardioversion in unstable patients.", "url": "https://www.ahajournals.org/doi/10.1161/CIR.0000000000000941"})
@@ -248,10 +262,9 @@ def build_grounding(user_input):
     papers = search_semantic_scholar(user_input)
     for p in papers:
         abstract = p.get('abstract')
-        if isinstance(abstract, str) and abstract.strip():
-            content = highlight_relevant_sentences(abstract, user_input)
-            if content:
-                sources.append({"desc": "Semantic Scholar", "content": f"{p['title']}: {content}", "url": p['url']})
+        content = safe_highlight(abstract, user_input)
+        if content:
+            sources.append({"desc": "Semantic Scholar", "content": f"{p['title']}: {content}", "url": p['url']})
 
     pubmed = search_pubmed(user_input)
     for p in pubmed:
@@ -260,22 +273,19 @@ def build_grounding(user_input):
             sources.append({"desc": "PubMed", "content": title, "url": p['url']})
 
     medline, medline_url = scrape_trusted_health_site(user_input)
-    if isinstance(medline, str) and medline.strip():
-        highlighted = highlight_relevant_sentences(medline, user_input)
-        if highlighted:
-            sources.append({"desc": "MedlinePlus", "content": highlighted, "url": medline_url})
+    highlighted = safe_highlight(medline, user_input)
+    if highlighted:
+        sources.append({"desc": "MedlinePlus", "content": highlighted, "url": medline_url})
 
     cdc, cdc_url = fetch_cdc(user_input)
-    if isinstance(cdc, str) and cdc.strip():
-        highlighted = highlight_relevant_sentences(cdc, user_input)
-        if highlighted:
-            sources.append({"desc": "CDC", "content": highlighted, "url": cdc_url})
+    highlighted = safe_highlight(cdc, user_input)
+    if highlighted:
+        sources.append({"desc": "CDC", "content": highlighted, "url": cdc_url})
 
     mayo, mayo_url = fetch_mayo_clinic(user_input)
-    if isinstance(mayo, str) and mayo.strip():
-        highlighted = highlight_relevant_sentences(mayo, user_input)
-        if highlighted:
-            sources.append({"desc": "Mayo Clinic", "content": highlighted, "url": mayo_url})
+    highlighted = safe_highlight(mayo, user_input)
+    if highlighted:
+        sources.append({"desc": "Mayo Clinic", "content": highlighted, "url": mayo_url})
 
     return sources
 
@@ -328,7 +338,7 @@ def safe_token_count(llm, prompt):
 
 def prepare_prompt_and_trim(llm, build_prompt, history, user_input, sources):
     prompt = build_prompt(history, user_input, sources)
-    # Try to trim history first, then sources, then force cut prompt.
+    # Aggressively trim history, then sources, then cut lines until we're under limit
     while safe_token_count(llm, prompt) > MAX_PROMPT_TOKENS:
         if len(history) > 0:
             history = history[1:]
@@ -342,6 +352,9 @@ def prepare_prompt_and_trim(llm, build_prompt, history, user_input, sources):
             prompt = "\n".join(lines)
             break
         prompt = build_prompt(history, user_input, sources)
+    # As an absolute last resort, slice prompt in half until it fits
+    while safe_token_count(llm, prompt) > MAX_PROMPT_TOKENS and len(prompt) > 10:
+        prompt = prompt[:len(prompt)//2]
     return prompt
 
 @app.post("/chat")
@@ -352,7 +365,7 @@ def chat(req: ChatRequest):
         sources = build_grounding(user_input)
         prompt = prepare_prompt_and_trim(llm, build_prompt, history, user_input, sources)
         if safe_token_count(llm, prompt) > MAX_PROMPT_TOKENS:
-            return {"error": "Prompt too long for context window, try a shorter input."}
+            return {"error": "Prompt too long for context window. Try a shorter message."}
         output = llm(prompt, max_tokens=GENERATE_TOKENS, stop=["User:", "AI:"])
         reply = output["choices"][0]["text"].strip()
         return {"reply": reply}
@@ -362,4 +375,3 @@ def chat(req: ChatRequest):
 @app.get("/")
 def root():
     return {"msg": "Fernly AI API running"}
-
