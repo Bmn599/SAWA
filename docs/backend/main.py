@@ -220,7 +220,6 @@ def trim_to_sentences(text, max_sentences=2):
     sentences = re.split(r'(?<=[.!?]) +', text.strip())
     return " ".join(sentences[:max_sentences])
 
-# ---- UPDATED build_grounding ----
 def build_grounding(user_input):
     sources = []
     key_terms = extract_key_terms(user_input)
@@ -279,7 +278,6 @@ def build_grounding(user_input):
             sources.append({"desc": "Mayo Clinic", "content": highlighted, "url": mayo_url})
 
     return sources
-# ---- END build_grounding ----
 
 def build_prompt(history, user_input, sources):
     source_texts = []
@@ -361,7 +359,7 @@ def chat(req: ChatRequest):
     except Exception as e:
         return {"error": str(e)}
 
-# (Optional: Add a root endpoint so you don't get 404 warnings in the logs)
 @app.get("/")
 def root():
     return {"msg": "Fernly AI API running"}
+
