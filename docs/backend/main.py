@@ -21,7 +21,7 @@ MAX_PROMPT_TOKENS = CONTEXT_WINDOW - GENERATE_TOKENS
 HISTORY_LIMIT = 3
 
 llm = Llama(
-    model_path="backend/models/tinyllama-1.1b-chat-v1.0.Q8_0.gguf",
+    model_path="models/tinyllama-1.1b-chat-v1.0.Q8_0.gguf",
     n_ctx=CONTEXT_WINDOW,
 )
 
