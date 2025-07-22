@@ -14,7 +14,6 @@ except Exception:
 import hashlib
 import json
 
-# Context window for the model and prompt limits
 CONTEXT_WINDOW = 1024
 GENERATE_TOKENS = 400
 MAX_PROMPT_TOKENS = CONTEXT_WINDOW - GENERATE_TOKENS
@@ -55,7 +54,7 @@ def cache_lookup(key, fetch_func, *args, **kwargs):
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For production, set to your domain!
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -204,17 +203,16 @@ def fetch_mayo_clinic(query):
     return cache_lookup("mayo", _fetch_mayo_clinic, query)
 
 def highlight_relevant_sentences(text, query):
-    if not text:
+    if not text or not isinstance(text, str):
         return ""
     keywords = set(extract_key_terms(query))
     sentences = re.split(r'(?<=[.!?]) +', text)
     relevant = [s for s in sentences if any(k in s.lower() for k in keywords)]
-    # Only keep the most relevant or first few sentences to keep prompts short
     chosen = relevant[:2] if relevant else sentences[:2]
     return " ".join(chosen)
 
 def trim_to_sentences(text, max_sentences=2):
-    if not text:
+    if not text or not isinstance(text, str):
         return ""
     sentences = re.split(r'(?<=[.!?]) +', text.strip())
     return " ".join(sentences[:max_sentences])
@@ -225,15 +223,18 @@ def build_grounding(user_input):
     dict_defs = []
     for term in key_terms:
         definition = lookup_dictionary(term)
-        if definition:
+        if definition and isinstance(definition, str) and definition.strip():
             trimmed = trim_to_sentences(definition, 1)
-            dict_defs.append(f"**{term}**: {trimmed}")
+            if trimmed:
+                dict_defs.append(f"**{term}**: {trimmed}")
     if dict_defs:
         sources.append({"desc": "Dictionary definitions", "content": "\n".join(dict_defs), "url": None})
 
     wiki, wiki_url = fetch_wikipedia_summary(user_input)
-    if wiki:
-        sources.append({"desc": "Wikipedia", "content": highlight_relevant_sentences(wiki, user_input), "url": wiki_url})
+    if wiki and isinstance(wiki, str) and wiki.strip():
+        highlighted = highlight_relevant_sentences(wiki, user_input)
+        if highlighted:
+            sources.append({"desc": "Wikipedia", "content": highlighted, "url": wiki_url})
 
     # Prioritize guidelines and RCTs
     sources.append({"desc": "AHA/ACC/HFSA Guideline", "content": "2022 guideline for heart failure and arrhythmia management. Includes recommendations for acute and chronic AFib, rate/rhythm control, and anticoagulation. Class I, Level A evidence for immediate cardioversion in unstable patients.", "url": "https://www.ahajournals.org/doi/10.1161/CIR.0000000000000941"})
@@ -243,24 +244,35 @@ def build_grounding(user_input):
 
     papers = search_semantic_scholar(user_input)
     for p in papers:
-        content = highlight_relevant_sentences(p['abstract'], user_input)
-        sources.append({"desc": "Semantic Scholar", "content": f"{p['title']}: {content}", "url": p['url']})
+        abstract = p.get('abstract')
+        if abstract and isinstance(abstract, str) and abstract.strip():
+            content = highlight_relevant_sentences(abstract, user_input)
+            if content:
+                sources.append({"desc": "Semantic Scholar", "content": f"{p['title']}: {content}", "url": p['url']})
 
     pubmed = search_pubmed(user_input)
     for p in pubmed:
-        sources.append({"desc": "PubMed", "content": p['title'], "url": p['url']})
+        title = p.get('title')
+        if title and isinstance(title, str) and title.strip():
+            sources.append({"desc": "PubMed", "content": p['title'], "url": p['url']})
 
     medline, medline_url = scrape_trusted_health_site(user_input)
-    if medline:
-        sources.append({"desc": "MedlinePlus", "content": highlight_relevant_sentences(medline, user_input), "url": medline_url})
+    if medline and isinstance(medline, str) and medline.strip():
+        highlighted = highlight_relevant_sentences(medline, user_input)
+        if highlighted:
+            sources.append({"desc": "MedlinePlus", "content": highlighted, "url": medline_url})
 
     cdc, cdc_url = fetch_cdc(user_input)
-    if cdc:
-        sources.append({"desc": "CDC", "content": highlight_relevant_sentences(cdc, user_input), "url": cdc_url})
+    if cdc and isinstance(cdc, str) and cdc.strip():
+        highlighted = highlight_relevant_sentences(cdc, user_input)
+        if highlighted:
+            sources.append({"desc": "CDC", "content": highlighted, "url": cdc_url})
 
     mayo, mayo_url = fetch_mayo_clinic(user_input)
-    if mayo:
-        sources.append({"desc": "Mayo Clinic", "content": highlight_relevant_sentences(mayo, user_input), "url": mayo_url})
+    if mayo and isinstance(mayo, str) and mayo.strip():
+        highlighted = highlight_relevant_sentences(mayo, user_input)
+        if highlighted:
+            sources.append({"desc": "Mayo Clinic", "content": highlighted, "url": mayo_url})
 
     return sources
 
@@ -306,16 +318,18 @@ def build_prompt(history, user_input, sources):
 
 def prepare_prompt(history, user_input):
     """Build and trim the prompt so it never exceeds the model context window."""
-    history = history[-HISTORY_LIMIT:]
+    history = list(history[-HISTORY_LIMIT:])
     sources = build_grounding(user_input)
     prompt = build_prompt(history, user_input, sources)
+    # Remove older chat, then sources, until within token limit
     while len(llm.tokenize(prompt.encode())) > MAX_PROMPT_TOKENS:
         if len(history) > 1:
             history = history[1:]
         elif sources:
             sources = sources[:-1]
         else:
-            break
+            # As last resort, truncate the user_input
+            user_input = user_input[:max(1, len(user_input) // 2)]
         prompt = build_prompt(history, user_input, sources)
     return prompt
 
@@ -324,6 +338,12 @@ def chat(req: ChatRequest):
     user_input = req.message.strip()
     history = req.history or []
     prompt = prepare_prompt(history, user_input)
+    # Final check: trim prompt if still over
+    tokens = llm.tokenize(prompt.encode())
+    while len(tokens) > MAX_PROMPT_TOKENS:
+        # Try removing lines from the end
+        prompt = "\n".join(prompt.splitlines()[:-1])
+        tokens = llm.tokenize(prompt.encode())
     output = llm(prompt, max_tokens=GENERATE_TOKENS, stop=["User:", "AI:"])
     reply = output["choices"][0]["text"].strip()
     return {"reply": reply}
