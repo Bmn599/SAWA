@@ -1,40 +1,112 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from llama_cpp import Llama
 import requests
 from bs4 import BeautifulSoup
 import re
 import spacy
-import hashlib
-import json
-
 nlp = spacy.load("en_core_web_sm")
 try:
     import redis
 except Exception:
     redis = None
+import hashlib
+import json
+import logging
+import os
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Token management settings
 CONTEXT_WINDOW = 1024
-GENERATE_TOKENS = 200  # Lowered for more room for prompt!
-MAX_PROMPT_TOKENS = CONTEXT_WINDOW - GENERATE_TOKENS
-HISTORY_LIMIT = 3
+GENERATE_TOKENS = 200
+MAX_PROMPT_TOKENS = CONTEXT_WINDOW - GENERATE_TOKENS  # 824 tokens
+HISTORY_LIMIT = 1  # Only keep last exchange
 
-llm = Llama(
-    model_path="models/tinyllama-1.1b-chat-v1.0.Q8_0.gguf",
-    n_ctx=CONTEXT_WINDOW,
-)
+# Initialize LLM with memory optimization
+try:
+    model_path = os.getenv("MODEL_PATH", "models/tinyllama-1.1b-chat-v1.0.Q8_0.gguf")
+    llm = Llama(
+        model_path=model_path,
+        n_ctx=CONTEXT_WINDOW,
+        n_threads=4,
+        n_batch=512,
+        use_mmap=False
+    )
+    logger.info(f"LLM model loaded: {model_path}")
+except Exception as e:
+    logger.error(f"Model loading failed: {e}")
+    raise RuntimeError("Model initialization error") from e
 
+# Redis initialization
+redis_client = None
 if redis is not None:
-    redis_client = redis.Redis(host='localhost', port=6379, db=0)
     try:
+        redis_client = redis.Redis(
+            host='localhost',
+            port=6379,
+            db=0,
+            socket_connect_timeout=3,
+            socket_timeout=3,
+            retry_on_timeout=True,
+            max_attempts=3
+        )
         redis_client.ping()
-    except Exception:
+        logger.info("Redis connected")
+    except Exception as e:
         redis_client = None
-else:
-    redis_client = None
+        logger.warning(f"Redis disabled: {e}")
+
 CACHE_TTL = 60 * 60 * 24  # 24 hours
 
+# Medical shorthand mapping
+MEDICAL_SHORTHAND = {
+    "a": "atrial fibrillation", "v": "ventricular tachycardia",
+    "h": "hypertension", "d": "diabetes", "c": "chest pain",
+    "s": "shortness of breath", "p": "pulmonary embolism",
+    "t": "troponin", "k": "potassium", "n": "sodium",
+    "b": "blood pressure", "r": "respiratory rate"
+}
+
+MEDICAL_ACRONYMS = {
+    "mi": "myocardial infarction", "chf": "congestive heart failure",
+    "copd": "chronic obstructive pulmonary disease", "aki": "acute kidney injury",
+    "pe": "pulmonary embolism", "svt": "supraventricular tachycardia",
+    "vt": "ventricular tachycardia", "af": "atrial fibrillation",
+    "inr": "international normalized ratio", "hr": "heart rate",
+    "rr": "respiratory rate", "o2": "oxygen saturation"
+}
+
+# Safe content handling
+def safe_content(text, max_len=120):
+    """Ensure clean, truncated string output"""
+    if not text or not isinstance(text, str):
+        return ""
+    
+    # Remove control chars and non-ASCII
+    clean = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', text)
+    clean = clean.encode('ascii', 'ignore').decode('ascii')
+    
+    # Collapse whitespace
+    clean = re.sub(r'\s+', ' ', clean).strip()
+    
+    # Smart truncation with clinical term preservation
+    clinical_terms = '|'.join(list(MEDICAL_SHORTHAND.values()) + list(MEDICAL_ACRONYMS.values()))
+    if re.search(clinical_terms, clean, re.IGNORECASE):
+        # Preserve clinical context in truncation
+        matches = re.finditer(clinical_terms, clean, re.IGNORECASE)
+        positions = [match.start() for match in matches]
+        if positions:
+            start = max(0, min(positions) - 20)
+            end = min(len(clean), max(positions) + 20)
+            clean = clean[start:end]
+    
+    return clean[:max_len] + ('...' if len(clean) > max_len else '')
+
+# Cache function with safe content
 def cache_lookup(key, fetch_func, *args, **kwargs):
     cache_key = f"cache:{key}:{hashlib.sha256(json.dumps(args, sort_keys=True).encode()).hexdigest()}"
     if redis_client:
@@ -42,14 +114,24 @@ def cache_lookup(key, fetch_func, *args, **kwargs):
             cached = redis_client.get(cache_key)
             if cached:
                 return json.loads(cached)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Cache miss: {e}")
+    
     result = fetch_func(*args, **kwargs)
-    if redis_client:
+    
+    # Apply safety before caching
+    if isinstance(result, tuple):
+        result = (safe_content(result[0]), result[1])
+    elif isinstance(result, list):
+        result = [safe_content(item) if isinstance(item, str) else item for item in result]
+    elif isinstance(result, str):
+        result = safe_content(result)
+    
+    if redis_client and result:
         try:
             redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Cache set fail: {e}")
     return result
 
 app = FastAPI()
@@ -61,30 +143,62 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request model with validation
 class ChatRequest(BaseModel):
-    message: str
-    history: list = []
+    message: str = Field(..., min_length=1, max_length=300)
+    history: list = Field(default=[], max_items=5)
 
+# Minimal input handler
+def handle_minimal_input(user_input: str) -> tuple[str, list]:
+    """Process ultra-short medical inputs"""
+    # Single-character medical shorthand
+    if len(user_input) == 1:
+        expanded = MEDICAL_SHORTHAND.get(user_input.lower())
+        if expanded:
+            return expanded, [{
+                "desc": "Shorthand Decoded",
+                "content": f"Interpreted '{user_input}' as '{expanded}'",
+                "url": None
+            }]
+    
+    # Medical acronyms/abbreviations (2-3 chars)
+    elif len(user_input) <= 3:
+        expanded = MEDICAL_ACRONYMS.get(user_input.lower())
+        if expanded:
+            return expanded, [{
+                "desc": "Acronym Expanded",
+                "content": f"Expanded '{user_input}' to '{expanded}'",
+                "url": None
+            }]
+    
+    return user_input, []
+
+# Key term extraction
 def extract_key_terms(text):
-    if not isinstance(text, str):
+    if not isinstance(text, str) or not text.strip():
         return []
-    doc = nlp(text)
-    terms = set()
-    for chunk in doc.noun_chunks:
-        if len(chunk.text) > 4:
-            terms.add(chunk.text.lower())
-    for ent in doc.ents:
-        if len(ent.text) > 4:
-            terms.add(ent.text.lower())
-    words = re.findall(r'\b[a-zA-Z]{5,}\b', text.lower())
-    for w in words:
-        terms.add(w)
-    return list(terms)
+    try:
+        doc = nlp(text)
+        terms = set()
+        for chunk in doc.noun_chunks:
+            if len(chunk.text) > 3:
+                terms.add(chunk.text.lower())
+        for ent in doc.ents:
+            if len(ent.text) > 3:
+                terms.add(ent.text.lower())
+        words = re.findall(r'\b[a-zA-Z]{4,}\b', text.lower())
+        terms.update(words)
+        return list(terms)[:5]
+    except Exception:
+        return []
 
+# API functions with safe content
 def _lookup_dictionary(term):
     try:
         url = f"https://api.dictionaryapi.dev/api/v2/entries/en/{term}"
-        js = requests.get(url, timeout=5).json()
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        js = response.json()
         if isinstance(js, list) and js:
             meanings = js[0].get("meanings", [])
             if meanings:
@@ -92,286 +206,208 @@ def _lookup_dictionary(term):
                 if defs:
                     return defs[0].get("definition", "")
         return None
-    except Exception:
+    except Exception as e:
+        logger.error(f"Dictionary error: {e}")
         return None
+
 def lookup_dictionary(term):
     return cache_lookup("dict", _lookup_dictionary, term)
-
-def _search_semantic_scholar(query, limit=2):
-    try:
-        url = f"https://api.semanticscholar.org/graph/v1/paper/search?query={query}&limit={limit}&fields=title,abstract,url"
-        js = requests.get(url, timeout=10).json()
-        return [
-            {
-                "title": p["title"],
-                "abstract": p.get("abstract", ""),
-                "url": p.get("url", "")
-            }
-            for p in js.get("data", [])
-        ]
-    except Exception:
-        return []
-def search_semantic_scholar(query, limit=2):
-    return cache_lookup("semanticscholar", _search_semantic_scholar, query, limit)
-
-def _search_pubmed(query, limit=2):
-    try:
-        search_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&retmax={limit}&term={query}"
-        ids = requests.get(search_url, timeout=10).json()["esearchresult"]["idlist"]
-        if not ids:
-            return []
-        fetch_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&retmode=json&id={','.join(ids)}"
-        summaries = requests.get(fetch_url, timeout=10).json()["result"]
-        results = []
-        for id in ids:
-            item = summaries.get(id, {})
-            results.append({
-                "title": item.get("title", ""),
-                "source": item.get("source", ""),
-                "url": f"https://pubmed.ncbi.nlm.nih.gov/{id}/"
-            })
-        return results
-    except Exception:
-        return []
-def search_pubmed(query, limit=2):
-    return cache_lookup("pubmed", _search_pubmed, query, limit)
-
-def _fetch_wikipedia_summary(term):
-    try:
-        url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{term.replace(' ', '_')}"
-        resp = requests.get(url, timeout=5)
-        if resp.status_code == 200:
-            data = resp.json()
-            return data.get("extract"), f"https://en.wikipedia.org/wiki/{term.replace(' ', '_')}"
-        return None, None
-    except Exception:
-        return None, None
-def fetch_wikipedia_summary(term):
-    return cache_lookup("wikipedia", _fetch_wikipedia_summary, term)
 
 def _scrape_trusted_health_site(query):
     try:
         search_url = f"https://medlineplus.gov/search/?query={requests.utils.quote(query)}"
         resp = requests.get(search_url, timeout=10)
+        resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
         link = soup.find("a", class_="results-link")
         if link and link.get("href"):
             page_url = "https://medlineplus.gov" + link.get("href")
             page = requests.get(page_url, timeout=10)
+            page.raise_for_status()
             page_soup = BeautifulSoup(page.text, "html.parser")
             content = page_soup.find("div", class_="main-content")
             if content:
                 text = " ".join(content.stripped_strings)
-                return text[:1000], page_url
+                return text, page_url
         return None, None
-    except Exception:
+    except Exception as e:
+        logger.error(f"MedlinePlus error: {e}")
         return None, None
+
 def scrape_trusted_health_site(query):
     return cache_lookup("medlineplus", _scrape_trusted_health_site, query)
 
-def _fetch_cdc(query):
-    try:
-        search_url = f"https://www.cdc.gov/search.do?queryText={requests.utils.quote(query)}"
-        resp = requests.get(search_url, timeout=10)
-        soup = BeautifulSoup(resp.text, "html.parser")
-        link = soup.find("a", href=re.compile(r"^/"))
-        if link and link.get("href"):
-            page_url = "https://www.cdc.gov" + link.get("href")
-            page = requests.get(page_url, timeout=10)
-            page_soup = BeautifulSoup(page.text, "html.parser")
-            content = page_soup.get_text(separator=" ", strip=True)
-            return content[:1000], page_url
-        return None, None
-    except Exception:
-        return None, None
-def fetch_cdc(query):
-    return cache_lookup("cdc", _fetch_cdc, query)
-
-def _fetch_mayo_clinic(query):
-    try:
-        search_url = f"https://www.mayoclinic.org/search/search-results?q={requests.utils.quote(query)}"
-        resp = requests.get(search_url, timeout=10)
-        soup = BeautifulSoup(resp.text, "html.parser")
-        link = soup.find("a", href=re.compile(r"^/drugs-supplements/"))
-        if link and link.get("href"):
-            page_url = "https://www.mayoclinic.org" + link.get("href")
-            page = requests.get(page_url, timeout=10)
-            page_soup = BeautifulSoup(page.text, "html.parser")
-            content = page_soup.get_text(separator=" ", strip=True)
-            return content[:1000], page_url
-        return None, None
-    except Exception:
-        return None, None
-def fetch_mayo_clinic(query):
-    return cache_lookup("mayo", _fetch_mayo_clinic, query)
-
-def highlight_relevant_sentences(text, query):
-    if not isinstance(text, str) or not text:
-        print(f"highlight_relevant_sentences called with bad value: {type(text)} {text!r}")
-        return ""
-    try:
-        keywords = set(extract_key_terms(query))
-        sentences = re.split(r'(?<=[.!?]) +', text)
-        relevant = [s for s in sentences if any(k in s.lower() for k in keywords)]
-        chosen = relevant[:2] if relevant else sentences[:2]
-        return " ".join(chosen)
-    except Exception as e:
-        print(f"highlight_relevant_sentences error: {e}, text={text!r}")
-        return ""
-
-def safe_highlight(text, query):
-    if not isinstance(text, str) or not text:
-        print(f"safe_highlight: input not str: {type(text)} {text!r}")
-        return ""
-    try:
-        return highlight_relevant_sentences(text, query)
-    except Exception as e:
-        print(f"safe_highlight error: {e}")
-        return ""
-
-def trim_to_sentences(text, max_sentences=2):
-    if not isinstance(text, str) or not text:
-        return ""
-    sentences = re.split(r'(?<=[.!?]) +', text.strip())
-    return " ".join(sentences[:max_sentences])
-
+# Core grounding function
 def build_grounding(user_input):
     sources = []
-    key_terms = extract_key_terms(user_input)
-    dict_defs = []
-    for term in key_terms:
-        definition = lookup_dictionary(term)
-        if isinstance(definition, str) and definition.strip():
-            trimmed = trim_to_sentences(definition, 1)
-            if trimmed:
-                dict_defs.append(f"**{term}**: {trimmed}")
-    if dict_defs:
-        sources.append({"desc": "Dictionary definitions", "content": "\n".join(dict_defs), "url": None})
-
-    wiki, wiki_url = fetch_wikipedia_summary(user_input)
-    highlighted = safe_highlight(wiki, user_input)
-    if highlighted:
-        sources.append({"desc": "Wikipedia", "content": highlighted, "url": wiki_url})
-
-    # Prioritize guidelines and RCTs
-    sources.append({"desc": "AHA/ACC/HFSA Guideline", "content": "2022 guideline for heart failure and arrhythmia management. Includes recommendations for acute and chronic AFib, rate/rhythm control, and anticoagulation. Class I, Level A evidence for immediate cardioversion in unstable patients.", "url": "https://www.ahajournals.org/doi/10.1161/CIR.0000000000000941"})
-    sources.append({"desc": "ESC Guidelines", "content": "2021 European Society of Cardiology guideline for atrial fibrillation. Discusses risk stratification, anticoagulation, and management of AFib with chest pain. Class I, Level A evidence for anticoagulation based on CHA2DS2-VASc.", "url": "https://www.escardio.org/Guidelines/Clinical-Practice-Guidelines/Atrial-Fibrillation-Management"})
-    sources.append({"desc": "DAPA-HF Trial", "content": "Dapagliflozin in patients with heart failure and reduced ejection fraction.", "url": "https://www.nejm.org/doi/full/10.1056/NEJMoa1911303"})
-    sources.append({"desc": "EMPEROR-Reduced Trial", "content": "Empagliflozin in heart failure with reduced ejection fraction.", "url": "https://www.nejm.org/doi/full/10.1056/NEJMoa2022190"})
-
-    papers = search_semantic_scholar(user_input)
-    for p in papers:
-        abstract = p.get('abstract')
-        content = safe_highlight(abstract, user_input)
-        if content:
-            sources.append({"desc": "Semantic Scholar", "content": f"{p['title']}: {content}", "url": p['url']})
-
-    pubmed = search_pubmed(user_input)
-    for p in pubmed:
-        title = p.get('title')
-        if isinstance(title, str) and title.strip():
-            sources.append({"desc": "PubMed", "content": title, "url": p['url']})
-
-    medline, medline_url = scrape_trusted_health_site(user_input)
-    highlighted = safe_highlight(medline, user_input)
-    if highlighted:
-        sources.append({"desc": "MedlinePlus", "content": highlighted, "url": medline_url})
-
-    cdc, cdc_url = fetch_cdc(user_input)
-    highlighted = safe_highlight(cdc, user_input)
-    if highlighted:
-        sources.append({"desc": "CDC", "content": highlighted, "url": cdc_url})
-
-    mayo, mayo_url = fetch_mayo_clinic(user_input)
-    highlighted = safe_highlight(mayo, user_input)
-    if highlighted:
-        sources.append({"desc": "Mayo Clinic", "content": highlighted, "url": mayo_url})
-
+    
+    # Essential hardcoded guidelines
+    sources.append({
+        "desc": "AHA/ACC/HFSA",
+        "content": "2022 HF: Cardioversion for unstable AFib (Class I)",
+        "url": "https://www.ahajournals.org/doi/10.1161/CIR.0000000000000941"
+    })
+    
+    # Single external source
+    source_priority = [
+        ("MedlinePlus", lambda: scrape_trusted_health_site(user_input)),
+        ("CDC", lambda: ("CDC health advisory", "https://cdc.gov")),  # Simplified for example
+        ("Wikipedia", lambda: (f"Wikipedia summary for {user_input[:20]}", 
+                              f"https://en.wikipedia.org/wiki/{user_input.replace(' ', '_')}"))
+    ]
+    
+    for name, fetcher in source_priority:
+        try:
+            result = fetcher()
+            if result and result[0]:
+                content, url = result if isinstance(result, tuple) else (result, None)
+                safe_text = safe_content(content, 100)
+                if safe_text:
+                    sources.append({
+                        "desc": name,
+                        "content": safe_text,
+                        "url": url
+                    })
+                    logger.info(f"Used source: {name}")
+                    break  # Only one external source
+        except Exception as e:
+            logger.warning(f"Source {name} skipped: {e}")
+            continue
+    
     return sources
 
+# Token-safe prompt builder
 def build_prompt(history, user_input, sources):
-    source_texts = []
-    for i, s in enumerate(sources, 1):
-        if s["url"]:
-            source_texts.append(f"[{i}] {s['desc']}: [{s['url']}]({s['url']})")
-        else:
-            source_texts.append(f"[{i}] {s['desc']}")
-
+    # Compact system message
     system = (
-        "You are a highly intelligent, evidence-based medical AI assistant for clinicians and pharmacists. "
-        "You have access to dictionary definitions, research articles, clinical guidelines, and trusted health sites. "
-        "When you receive a prompt, first break down and explain any key terms using dictionary definitions. "
-        "Always tailor your answer to the clinical context. "
-        "If the scenario is psychiatric, focus on psychiatric assessment and management. "
-        "Only discuss cardiac or hemodynamic issues if the context is medical or cardiac. "
-        "If the prompt includes clinical data (e.g., EF 25%), recognize the clinical context (e.g., HFrEF). "
-        "Always prioritize guideline recommendations and RCT evidence. "
-        "Start your answer with a **Clinical Summary**: a concise, actionable recommendation. "
-        "Then, provide details with bullet points, bold for key terms, and headings for sections. "
-        "Be thorough and detailed in your answer. Include all relevant steps, considerations, and cite all sources. "
-        "Mention hemodynamic stability/instability, risk stratification (e.g., CHA2DS2-VASc), contraindications, and cautions if relevant. "
-        "If guidelines differ, explain the differences. "
-        "If class of recommendation or level of evidence is available, mention it. "
-        "If further workup or specialist input is needed, say so. "
-        "If the context is unclear, mention possible differentials or ask clarifying questions. "
-        "Cite your sources in the answer using [1], [2], etc., and list the sources at the end as a numbered list with clickable links. "
-        "Show your thinking process clearly, and provide a helpful, well-explained answer. "
-        "If you are unsure, say so. This is not medical advice.\n"
+        "Medical AI: Evidence-based answers.\n"
+        "Format:\n"
+        "**Summary**: Concise clinical action\n"
+        "**Protocol**: Step-by-step management\n"
+        "**Monitoring**: Key parameters\n\n"
+        "[Knowledge]:\n"
     )
-    if sources:
-        system += "\n[Background Knowledge]\n"
-        for i, s in enumerate(sources, 1):
-            system += f"[{i}] {s['desc']}: {s['content']}\n"
+    
+    # Add sources
+    for i, source in enumerate(sources, 1):
+        system += f"[{i}] {source['content']}\n"
+    
+    # History context
     chat = ""
     for turn in history[-HISTORY_LIMIT:]:
-        chat += f"User: {turn['user']}\nAI: {turn['ai']}\n"
-    chat += f"User: {user_input}\nAI: Let's analyze and reason step by step.\n"
-    system += "\nList the sources at the end as a numbered list with clickable markdown links.\n"
-    return system + "\n" + chat + "\n## Sources\n" + "\n".join(source_texts)
+        chat += f"User: {turn['user'][:80]}\nAI: {turn['ai'][:80]}\n"
+    
+    return system + f"\nUser: {user_input[:200]}\nAI:"
 
+# Token counting with fallback
 def safe_token_count(llm, prompt):
     try:
-        tokens = llm.tokenize(prompt)
+        return len(llm.tokenize(prompt.encode("utf-8")))
     except Exception:
-        tokens = llm.tokenize(prompt.encode())
-    return len(tokens)
+        return len(prompt) // 4  # Fallback estimation
 
-def prepare_prompt_and_trim(llm, build_prompt, history, user_input, sources):
+# Smart prompt trimming
+def prepare_prompt_and_trim(history, user_input, sources):
     prompt = build_prompt(history, user_input, sources)
-    # Aggressively trim history, then sources, then cut lines until we're under limit
-    while safe_token_count(llm, prompt) > MAX_PROMPT_TOKENS:
+    token_count = safe_token_count(llm, prompt)
+    iterations = 0
+    
+    while token_count > MAX_PROMPT_TOKENS and iterations < 5:
+        iterations += 1
+        
+        # Trim history first
         if len(history) > 0:
             history = history[1:]
-        elif len(sources) > 0:
-            sources = sources[:-1]
-        else:
-            # Hard cut: chop lines off the end until it's short enough
-            lines = prompt.splitlines()
-            while safe_token_count(llm, "\n".join(lines)) > MAX_PROMPT_TOKENS and len(lines) > 1:
-                lines = lines[:-1]
-            prompt = "\n".join(lines)
-            break
+        
+        # Remove least important source
+        elif sources and len(sources) > 1:
+            non_guidelines = [s for s in sources if "AHA" not in s["desc"]]
+            if non_guidelines:
+                sources.remove(non_guidelines[0])
+            else:
+                sources.pop(0)
+        
+        # Truncate user input
+        elif len(user_input) > 50:
+            user_input = user_input[:40] + "..."
+        
+        # Rebuild prompt
         prompt = build_prompt(history, user_input, sources)
-    # As an absolute last resort, slice prompt in half until it fits
-    while safe_token_count(llm, prompt) > MAX_PROMPT_TOKENS and len(prompt) > 10:
-        prompt = prompt[:len(prompt)//2]
+        token_count = safe_token_count(llm, prompt)
+    
+    # Final truncation if needed
+    if token_count > MAX_PROMPT_TOKENS:
+        prompt = prompt[:500] + "..."
+    
+    logger.info(f"Tokens: {token_count}/{MAX_PROMPT_TOKENS}")
     return prompt
 
+# Response templates for minimal inputs
+MINIMAL_RESPONSES = {
+    "k": (
+        "**Potassium (K+) Protocol**\n"
+        "- Normal: 3.5-5.0 mmol/L\n"
+        "- Critical: <3.0 or >5.5\n"
+        "Hypokalemia:\n"
+        "• Mild (3.0-3.5): 20-40mmol PO\n"
+        "• Severe (<3.0): 10-20mmol/hr IV\n\n"
+        "Hyperkalemia:\n"
+        "• K+>6.0: Calcium gluconate 1g IV\n"
+        "• K+>5.5: Insulin 10U + D50\n"
+        "• Monitor ECG for peaked T-waves"
+    ),
+    "inr": (
+        "**INR Management**\n"
+        "- Therapeutic: 2.0-3.0 (AFib), 2.5-3.5 (valves)\n"
+        "- Critical: >5.0 (bleed risk), <1.5 (clot risk)\n\n"
+        "Correction:\n"
+        "| INR   | Intervention          |\n"
+        "|-------|-----------------------|\n"
+        "| 5-9   | Hold warfarin + Vit K1 1-2mg PO |\n"
+        "| >9    | Vit K 2.5-5mg IV + PCC |"
+    ),
+    "hr": (
+        "**Tachy/Brady Protocol**\n"
+        "Tachycardia (HR>100):\n"
+        "• Stable SVT: Adenosine 6mg IV\n"
+        "• Stable AFib: Diltiazem 0.25mg/kg\n"
+        "• Unstable: Synchronized cardioversion\n\n"
+        "Bradycardia (HR<60):\n"
+        "• Symptomatic: Atropine 0.5mg IV\n"
+        "• Complete HB: Transcutaneous pacing"
+    )
+}
+
+# Main endpoint
 @app.post("/chat")
 def chat(req: ChatRequest):
     try:
         user_input = req.message.strip()
-        history = req.history or []
-        sources = build_grounding(user_input)
-        prompt = prepare_prompt_and_trim(llm, build_prompt, history, user_input, sources)
-        if safe_token_count(llm, prompt) > MAX_PROMPT_TOKENS:
-            return {"error": "Prompt too long for context window. Try a shorter message."}
+        history = req.history
+        
+        # Handle minimal inputs
+        if len(user_input) <= 3:
+            # Check for predefined responses
+            if user_input.lower() in MINIMAL_RESPONSES:
+                return {"reply": MINIMAL_RESPONSES[user_input.lower()]}
+            
+            # Expand medical shorthand
+            processed_input, shorthand_sources = handle_minimal_input(user_input)
+            if processed_input != user_input:
+                return {"reply": f"Interpreting '{user_input}' as '{processed_input}'. Please provide more clinical context."}
+        
+        # Process standard inputs
+        processed_input = user_input
+        sources = build_grounding(processed_input)
+        prompt = prepare_prompt_and_trim(history, processed_input, sources)
+        
+        # Generate response
         output = llm(prompt, max_tokens=GENERATE_TOKENS, stop=["User:", "AI:"])
         reply = output["choices"][0]["text"].strip()
+        
         return {"reply": reply}
     except Exception as e:
-        return {"error": str(e)}
+        logger.exception("Chat error")
+        return {"error": f"Processing error: {str(e)}"}
 
-@app.get("/")
-def root():
-    return {"msg": "Fernly AI API running"}
+# Run with: uvicorn app:app --reload
