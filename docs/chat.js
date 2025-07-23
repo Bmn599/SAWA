@@ -44,7 +44,8 @@ async function sendMessage() {
   } catch (err) {
     console.error('Error generating response:', err);
     botDiv.classList.remove('loading');
-    botDiv.querySelector('.message-text').textContent = "I'm here to listen and support you. Could you tell me more about what's on your mind?";
+    botDiv.querySelector('.message-text').textContent =
+      `Error: ${err.message || 'Unable to get response'}`;
     appendTimestamp(botDiv);
   } finally {
     chatSend.disabled = false;
