@@ -1,4 +1,4 @@
-const BACKEND_URL = "http://195.201.124.49:8000/chat";
+const BACKEND_URL = "https://ab6833e2de5d.ngrok-free.app/chat";
 let history = [];
 
 async function generateReply(userText) {
