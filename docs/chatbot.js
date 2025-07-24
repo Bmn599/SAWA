@@ -1,5 +1,5 @@
 // Backend endpoint for AI responses
-const BACKEND_URL = "https://ab6833e2de5d.ngrok-free.app/chat";
+const BACKEND_URL = "https://18789e45d828.ngrok-free.app/chat";
 
 // Conversation history sent with every request
 let history = [];
