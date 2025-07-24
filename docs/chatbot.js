@@ -10,7 +10,16 @@ let history = [];
  */
 async function generateReply(userText) {
   const payload = { message: userText, history };
-  console.log("Sending request:", payload);
+
+  // Debug log: Check payload structure before sending
+  console.log(
+    "Payload sent to backend:",
+    payload,
+    "message type:",
+    typeof payload.message,
+    "history is array:",
+    Array.isArray(payload.history)
+  );
 
   const response = await fetch(BACKEND_URL, {
     method: "POST",
@@ -29,7 +38,9 @@ async function generateReply(userText) {
   console.log("Backend response:", data);
 
   if (!response.ok || data.error) {
-    const msg = data.error || `HTTP ${response.status}`;
+    // Show backend error detail if available
+    const msg = data.error || data.detail || `HTTP ${response.status}`;
+    console.error("Backend error detail:", data.detail || msg);
     throw new Error(msg);
   }
 
@@ -37,7 +48,6 @@ async function generateReply(userText) {
     history.push({ user: userText, ai: data.reply });
     return data.reply;
   }
-
   throw new Error("No reply field in response");
 }
 
