@@ -10,7 +10,7 @@ import redis
 import hashlib
 import json
 
-llm = Llama(model_path="backend/models/tinyllama-1.1b-chat-v1.0.Q8_0.gguf", n_ctx=1024)
+llm = Llama(model_path="docs/backend/models/tinyllama-1.1b-chat-v1.0.Q8_0.gguf", n_ctx=1024)
 nlp = spacy.load("en_core_web_sm")
 
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
