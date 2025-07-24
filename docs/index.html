@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SAWA MED Assistant</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Additional mobile tweaks -->
+  <link rel="stylesheet" href="mobile-responsive.css">
 </head>
 <body>
   <aside class="sidebar">
@@ -24,5 +26,13 @@
   </div>
 
   <script src="chatbot.js"></script>
+  <script>
+    // Fix mobile 100vh issues
+    function setVh() {
+      document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px');
+    }
+    setVh();
+    window.addEventListener('resize', setVh);
+  </script>
 </body>
 </html>
