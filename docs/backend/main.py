@@ -6,10 +6,12 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import spacy
+nlp = spacy.load("en_core_web_sm")
 try:
     import redis
 except Exception:
-    redis = Noneimport hashlib
+    redis = None
+import hashlib
 import json
 import logging
 import os
@@ -57,8 +59,6 @@ if redis is not None:
     except Exception as e:
         redis_client = None
         logger.warning(f"Redis disabled: {e}")
-
-nlp = spacy.load("en_core_web_sm")
 
 CACHE_TTL = 60 * 60 * 24  # 24 hours
 
