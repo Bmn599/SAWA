@@ -37,14 +37,15 @@ async function sendMessage() {
   botDiv.classList.add('loading');
 
   try {
-    const aiResponse = await window.generateAIResponse(message);
+    const aiResponse = await window.generateReply(message);
     botDiv.classList.remove('loading');
-    botDiv.querySelector('.message-text').textContent = aiResponse;
+    await typeWriter(botDiv.querySelector('.message-text'), aiResponse);
     appendTimestamp(botDiv);
   } catch (err) {
     console.error('Error generating response:', err);
     botDiv.classList.remove('loading');
-    botDiv.querySelector('.message-text').textContent = "I'm here to listen and support you. Could you tell me more about what's on your mind?";
+    botDiv.querySelector('.message-text').textContent =
+      `Error: ${err.message || 'Unable to get response'}`;
     appendTimestamp(botDiv);
   } finally {
     chatSend.disabled = false;
@@ -67,4 +68,19 @@ function appendTimestamp(el) {
   span.className = 'timestamp';
   span.textContent = new Date().toLocaleTimeString();
   el.appendChild(span);
+}
+
+function typeWriter(el, text, delay = 20) {
+  return new Promise(resolve => {
+    let i = 0;
+    function type() {
+      if (i < text.length) {
+        el.textContent += text.charAt(i++);
+        setTimeout(type, delay);
+      } else {
+        resolve();
+      }
+    }
+    type();
+  });
 }
